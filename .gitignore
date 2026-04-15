@@ -1,0 +1,47 @@
+# ── Claude Code / AI agent files ──────────────────────────────────────────────
+.claude/
+project_setup.md
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Data files (store outside repo or use DVC) ────────────────────────────────
+data/raw/
+data/processed/
+*.csv
+*.txt
+*.parquet
+*.feather
+
+# ── MLflow artifacts ──────────────────────────────────────────────────────────
+mlruns/
+mlflow/artifacts/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Docker volumes ────────────────────────────────────────────────────────────
+postgres_data/
