@@ -138,7 +138,7 @@ def main() -> None:
         # ── Log the model ─────────────────────────────────────────────────────
         # Saves the trained model as an artifact so you can load and serve it
         # later without retraining.
-        mlflow.xgboost.log_model(model, artifact_path="model")
+        mlflow.xgboost.log_model(model, name="model")
 
         print(f"\nRun logged to MLflow experiment '{MLFLOW_EXPERIMENT}'")
 
