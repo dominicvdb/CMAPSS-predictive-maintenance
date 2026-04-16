@@ -4,6 +4,7 @@ Baseline XGBoost model for RUL prediction.
 Pipeline:
   fd001_features_train -> XGBoost regressor -> evaluate on fd001_features_val
   Logs parameters, metrics, and model artifact to MLflow.
+  Writes scored validation rows to PostgreSQL (val_predictions table).
 
 Run from repo root:
     python src/training/train_baseline.py
@@ -14,9 +15,10 @@ import mlflow
 import mlflow.xgboost
 import numpy as np
 import pandas as pd
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from xgboost import XGBRegressor
 
 
@@ -64,6 +66,42 @@ def train(X_train: pd.DataFrame, y_train: pd.Series) -> XGBRegressor:
     )
     model.fit(X_train, y_train)
     return model
+
+
+def assign_risk_bucket(rul: pd.Series) -> pd.Series:
+    return pd.cut(
+        rul,
+        bins=[-1, 30, 60, float("inf")],
+        labels=["high", "medium", "low"],
+    )
+
+
+def build_predictions_table(
+    val_df: pd.DataFrame,
+    preds: np.ndarray,
+    run_id: str,
+) -> pd.DataFrame:
+    out = pd.DataFrame({
+        "dataset_name": "FD001",
+        "split_name": "val",
+        "engine_id": val_df["engine_id"].values,
+        "cycle": val_df["cycle"].values,
+        "actual_rul": val_df["rul"].values,
+        "predicted_rul": preds,
+        "abs_error": np.abs(val_df["rul"].values - preds),
+        "run_id": run_id,
+        "model_name": "xgboost-baseline",
+        "prediction_timestamp": datetime.now(timezone.utc),
+    })
+    out["risk_bucket_actual"] = assign_risk_bucket(out["actual_rul"]).astype(str)
+    out["risk_bucket_predicted"] = assign_risk_bucket(out["predicted_rul"]).astype(str)
+
+    # Flag the last observed cycle per engine — useful for dashboard views
+    # that only want the current state of each engine, not its full history.
+    max_cycle_per_engine = out.groupby("engine_id")["cycle"].transform("max")
+    out["is_latest_cycle"] = out["cycle"] == max_cycle_per_engine
+
+    return out
 
 
 def evaluate(model: XGBRegressor, X: pd.DataFrame, y: pd.Series, label: str) -> dict:
@@ -140,7 +178,29 @@ def main() -> None:
         # later without retraining.
         mlflow.xgboost.log_model(model, name="model")
 
-        print(f"\nRun logged to MLflow experiment '{MLFLOW_EXPERIMENT}'")
+        # ── Log feature list as a text artifact ───────────────────────────────
+        # Stores the exact feature names used so any future run can be fully
+        # reproduced and audited without digging through code.
+        feature_info = "\n".join([
+            f"dataset:     FD001",
+            f"source_tables: fd001_features_train, fd001_features_val",
+            f"n_features:  {len(feature_cols)}",
+            f"window_size: 5",
+            "",
+            "features:",
+        ] + [f"  {col}" for col in feature_cols])
+        mlflow.log_text(feature_info, artifact_file="feature_list.txt")
+
+        # ── Write predictions to PostgreSQL ───────────────────────────────────
+        run_id = mlflow.active_run().info.run_id
+        pred_df = build_predictions_table(val_df, val_metrics["preds"], run_id)
+        table_name = "fd001_val_predictions_history"
+        pred_df.to_sql(table_name, db_engine, if_exists="append", index=False)
+
+        with db_engine.connect() as conn:
+            count = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+        print(f"\nWrote {count} total rows to '{table_name}'")
+        print(f"Run logged to MLflow experiment '{MLFLOW_EXPERIMENT}'")
 
 
 if __name__ == "__main__":
