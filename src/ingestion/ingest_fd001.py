@@ -12,9 +12,9 @@ def main() -> None:
     # Important:
     # This script runs on your HOST machine, not inside Docker.
     # So the database host is localhost, not "postgres".
-    db_user = os.getenv("POSTGRES_USER", "assetpulse")
-    db_password = os.getenv("POSTGRES_PASSWORD", "assetpulse")
-    db_name = os.getenv("POSTGRES_DB", "assetpulse")
+    db_user = os.getenv("POSTGRES_USER", "cmapss")
+    db_password = os.getenv("POSTGRES_PASSWORD", "cmapss")
+    db_name = os.getenv("POSTGRES_DB", "cmapss")
     db_host = os.getenv("POSTGRES_HOST", "localhost")
     db_port = os.getenv("POSTGRES_PORT", "5432")
 

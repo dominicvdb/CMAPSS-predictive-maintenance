@@ -1,7 +1,7 @@
 import mlflow
 
 mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("assetpulse-dev")
+mlflow.set_experiment("cmapss-dev")
 
 with mlflow.start_run(run_name="hello-mlflow"):
     mlflow.log_param("dataset", "FD001")

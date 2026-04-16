@@ -1,4 +1,4 @@
-# AssetPulse — Predictive Maintenance on NASA C-MAPSS
+# Predictive Maintenance on NASA C-MAPSS
 
 An end-to-end predictive maintenance platform built on the NASA C-MAPSS turbofan engine dataset. The goal is to predict **Remaining Useful Life (RUL)** for aircraft engines and surface actionable maintenance priorities through a production-style ML stack.
 
