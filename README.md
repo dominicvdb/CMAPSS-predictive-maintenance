@@ -143,10 +143,3 @@ Each row is one engine cycle with:
 ```
 
 ---
-
-## Roadmap
-
-**Week 1** — Data foundation + baseline model
-**Week 2** — FastAPI + Streamlit dashboard MVP
-**Week 3** — CI/CD, tests, and monitoring
-**Week 4** — Business polish and portfolio packaging
