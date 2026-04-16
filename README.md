@@ -1,41 +1,20 @@
 # Predictive Maintenance on NASA C-MAPSS
 
-An end-to-end predictive maintenance platform built on the NASA C-MAPSS turbofan engine dataset. The goal is to predict **Remaining Useful Life (RUL)** for aircraft engines and surface actionable maintenance priorities through a production-style ML stack.
-
-This is a portfolio project designed to demonstrate the full lifecycle: data ingestion → feature engineering → model training → API serving → dashboard → CI/CD → monitoring.
+An end-to-end predictive maintenance pipeline built on the NASA C-MAPSS turbofan engine dataset. Predicts **Remaining Useful Life (RUL)** and surfaces maintenance risk categories through a production-style ML stack.
 
 ---
 
 ## Problem statement
 
-Unplanned engine failures are costly. Given sensor readings from turbofan engines over time, can we predict how many cycles remain before failure — and flag engines that need maintenance soon?
+Given sensor readings from turbofan engines over time, predict how many cycles remain before failure and flag engines that need maintenance soon.
 
-**Modeling objective:** RUL regression on the FD001 subset of C-MAPSS (single operating condition, one fault mode).
+**Risk categories:**
 
-**Business translation:**
-
-| Risk category | Predicted RUL |
+| Category | Predicted RUL |
 |---|---|
 | High risk | ≤ 30 cycles |
 | Medium risk | 31–60 cycles |
 | Low risk | > 60 cycles |
-
----
-
-## Architecture
-
-```
-Raw C-MAPSS files
-    → ingestion scripts
-    → PostgreSQL
-    → feature pipeline
-    → training pipeline (scikit-learn / XGBoost)
-    → MLflow tracking + model artifacts
-    → FastAPI inference service
-    → prediction table in PostgreSQL
-    → Streamlit dashboard
-    → Evidently monitoring reports
-```
 
 ---
 
@@ -45,23 +24,22 @@ Raw C-MAPSS files
 |---|---|
 | Data store | PostgreSQL 16 |
 | Experiment tracking | MLflow |
-| ML | scikit-learn / XGBoost / LightGBM |
-| API | FastAPI |
-| Dashboard | Streamlit |
+| ML | XGBoost |
 | Infrastructure | Docker Compose |
-| CI/CD | GitHub Actions |
-| Monitoring | Evidently |
-| Code quality | Ruff, Black, pytest |
+| Language | Python 3.11 |
 
 ---
 
 ## Current status
 
-- [x] Docker Compose stack — PostgreSQL + MLflow running locally
-- [x] Raw data ingested — FD001 training trajectories loaded into PostgreSQL (`raw_fd001_train`)
-- [ ] Feature pipeline (rolling stats, delta features, normalized sensors)
-- [ ] Baseline model + MLflow experiment logging
-- [ ] FastAPI inference endpoints
+- [x] Docker Compose stack — PostgreSQL + MLflow
+- [x] Raw FD001 data ingested into PostgreSQL (`raw_fd001_train`)
+- [x] RUL labels computed — `fd001_train_labeled`
+- [x] Feature engineering — rolling mean, std, delta over 5 cycles for 9 sensors; 80/20 engine-level train/val split (`fd001_features_train`, `fd001_features_val`)
+- [x] Baseline XGBoost model — val MAE ~30 cycles, val RMSE ~43 cycles
+- [x] MLflow experiment logging — params, metrics, model artifact, feature list
+- [x] Validation predictions written to PostgreSQL (`fd001_val_predictions_history`) with risk buckets, `is_latest_cycle` flag, and MLflow `run_id`
+- [ ] FastAPI inference service
 - [ ] Streamlit fleet dashboard
 - [ ] GitHub Actions CI
 - [ ] Evidently monitoring report
@@ -73,8 +51,7 @@ Raw C-MAPSS files
 ### Prerequisites
 
 - Docker Desktop
-- Python 3.11+
-- conda or venv
+- Python 3.11+ (conda recommended)
 
 ### 1. Clone and configure
 
@@ -82,7 +59,6 @@ Raw C-MAPSS files
 git clone https://github.com/dominicvdb/CMAPSS-predictive-maintenance.git
 cd CMAPSS-predictive-maintenance
 cp env.example .env
-# edit .env with your preferred credentials
 ```
 
 ### 2. Start infrastructure
@@ -102,44 +78,43 @@ conda activate cmapss
 pip install -r requirements.txt
 ```
 
-### 4. Ingest data
+### 4. Run the pipeline
 
 ```bash
-python src/ingestion/ingest_fd001.py
+python src/ingestion/ingest_fd001.py       # load raw data
+python src/features/build_features.py     # compute RUL labels + features
+python src/training/train_baseline.py     # train, evaluate, log to MLflow
 ```
-
-This loads the FD001 training trajectories into the `raw_fd001_train` table in PostgreSQL.
 
 ---
 
-## Dataset
+## Pipeline
 
-NASA C-MAPSS (Commercial Modular Aero-Propulsion System Simulation) — four subsets with varying operating conditions and fault modes. This project starts with **FD001**: single operating condition, single fault mode, 100 training engines.
-
-Each row is one engine cycle with:
-- 2 identifier columns (engine ID, cycle number)
-- 3 operational setting columns
-- 21 sensor readings
+```
+Raw C-MAPSS files
+    → PostgreSQL (raw_fd001_train)
+    → RUL labels + feature engineering (fd001_features_train/val)
+    → XGBoost training
+    → MLflow (params, metrics, model artifact, feature list)
+    → Validation predictions (fd001_val_predictions_history)
+```
 
 ---
 
 ## Repository structure
 
 ```
-├── api/                  # FastAPI app (coming Week 2)
-├── dashboard/            # Streamlit app (coming Week 2)
-├── monitoring/           # Evidently reports (coming Week 3)
 ├── src/
-│   ├── ingestion/        # Data loading scripts
-│   ├── features/         # Feature engineering (coming Week 1)
-│   ├── training/         # Model training (coming Week 1)
-│   └── utils/
-├── tests/                # pytest suite (coming Week 3)
-├── scripts/dev/          # Local dev utilities
+│   ├── ingestion/        # Raw data → PostgreSQL
+│   ├── features/         # Feature engineering + train/val split
+│   └── training/         # Model training + MLflow logging
+├── scripts/dev/          # Local inspection utilities
+├── api/                  # FastAPI (coming)
+├── dashboard/            # Streamlit (coming)
+├── monitoring/           # Evidently (coming)
+├── tests/                # pytest (coming)
 ├── mlflow/               # MLflow Docker config
 ├── docker-compose.yml
 ├── requirements.txt
 └── env.example
 ```
-
----
