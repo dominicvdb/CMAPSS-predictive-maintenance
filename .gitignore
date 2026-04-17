@@ -1,6 +1,7 @@
 # ── Claude Code / AI agent files ──────────────────────────────────────────────
 .claude/
 project_setup.md
+project_continuation.md
 memory/
 
 # ── Python ────────────────────────────────────────────────────────────────────
